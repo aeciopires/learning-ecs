@@ -55,6 +55,35 @@ learn here applies everywhere.
 
 ## Architecture
 
+```mermaid
+flowchart TB
+    igw["Internet Gateway"]
+    subgraph vpc["VPC - CDK_VPC_CIDR (default 10.0.0.0/16)"]
+        direction LR
+        subgraph aza["AZ a"]
+            direction TB
+            pa["public 10.0.0.0/24<br/>NAT Gateway"]
+            pra["private 10.0.4.0/22<br/>ECS tasks"]
+            ia["isolated 10.0.12.0/24<br/>databases, caches<br/>(local routes only)"]
+        end
+        subgraph azb["AZ b"]
+            direction TB
+            pb["public 10.0.1.0/24"]
+            prb["private 10.0.8.0/22<br/>ECS tasks"]
+            ib["isolated 10.0.13.0/24<br/>databases, caches<br/>(local routes only)"]
+        end
+    end
+    igw <--> pa
+    igw <--> pb
+    pra -- "0.0.0.0/0" --> pa
+    prb -- "0.0.0.0/0<br/>(one NAT: via AZ a)" --> pa
+    vpc -. "S3 gateway endpoint (CDK_VPC_S3_ENDPOINT):<br/>a route in every private and isolated<br/>route table, no NAT hop" .-> s3[("Amazon S3")]
+    vpc -. "CDK_VPC_FLOW_LOGS=true" .-> fl["VPC Flow Logs<br/>to CloudWatch Logs"]
+```
+
+<details>
+<summary>Plain-text version (names and details)</summary>
+
 ```
                          VPC  CDK_VPC_CIDR (10.0.0.0/16)
  +--------------------------- AZ a ---------------+--------------- AZ b ----------------+
@@ -64,6 +93,8 @@ learn here applies everywhere.
  +-------------------------------------------------+-------------------------------------+
    S3 gateway endpoint: a route to S3 in every private/isolated route table (no NAT hop)
 ```
+
+</details>
 
 (These are the blocks the CDK computes for the defaults - `10.0.0.0/16`,
 two AZs, `/24` public and isolated, `/22` private; other values of

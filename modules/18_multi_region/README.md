@@ -61,6 +61,22 @@ region when the primary fails (5XX, connection failure or timeout).
 
 ## Architecture
 
+```mermaid
+flowchart TB
+    viewer(["viewer"]) --> cf["MultiRegionGlobalStack: CloudFront (global), origin group<br/>primary first; on 500/502/503/504, connection failure<br/>or timeout -> secondary (GET, HEAD, OPTIONS only)"]
+    cf -- "primary origin" --> pa
+    cf -. "failover" .-> sa
+    subgraph pr["MultiRegionPrimaryStack - CDK_MULTI_REGION_PRIMARY (default us-east-1)"]
+        pa["ALB learning-ecs-dev-alb-multi-..."] --> ps["service learning-ecs-dev-multi-region-web<br/>2 tasks, 2 AZs<br/>answers Name: primary us-east-1"]
+    end
+    subgraph se["MultiRegionSecondaryStack - CDK_MULTI_REGION_SECONDARY (default us-west-2)"]
+        sa["ALB learning-ecs-dev-alb-multi-..."] --> ss["service learning-ecs-dev-multi-region-web<br/>2 tasks, 2 AZs<br/>answers Name: secondary us-west-2"]
+    end
+```
+
+<details>
+<summary>Plain-text version (names and details)</summary>
+
 ```
                          CloudFront (global) - origin group
                          primary first; on 500/502/503/504, connection failure or timeout -> secondary
@@ -73,6 +89,8 @@ region when the primary fails (5XX, connection failure or timeout).
              (2 tasks, 2 AZs)  Name: primary us-east-1      (2 tasks, 2 AZs)  Name: secondary us-west-2
         VPC 10.x, cluster learning-ecs-dev-ecs-multi-region (same names in each region)
 ```
+
+</details>
 
 ## AWS services and CDK constructs used
 

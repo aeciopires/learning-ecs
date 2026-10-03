@@ -42,3 +42,18 @@ loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `REQUIREMENTS.md`, `CLAUDE.md`, `CONTRIBUTING.md`, `README.md`,
   `docs/LEARNING-PATH.md`, `docs/TESTING.md`, `docs/METRICS.md`,
   `docs/TROUBLESHOOTING.md`.
+- Mermaid diagrams for beginners, all rendered with mermaid-cli and checked
+  against the code (and, for floci, against a deployed module 04):
+  - `docs/ARCHITECTURE.md` (new): from `cdk deploy` to running containers,
+    how `app.py` discovers modules, modules sharing code but not resources,
+    the `shared/` helpers, where a setting comes from, names and tags,
+    floci vs real AWS.
+  - `README.md` ("How it works"), `docs/LEARNING-PATH.md` (phases and the
+    per-module loop), `REQUIREMENTS.md` (ECS concepts, setup steps, what
+    floci runs where, the life of a module on floci),
+    `docs/TROUBLESHOOTING.md` (decision tree, task lifecycle, start-up
+    sequence with the two IAM roles, who answers 5XX), `docs/METRICS.md`
+    (metric sources), `docs/TESTING.md` (how a unit test runs).
+  - Every module README: a Mermaid diagram at the top of "Architecture";
+    the plain-text diagram moved into a `<details>` block below it.
+- `CLAUDE.md`: diagram conventions (section 8).

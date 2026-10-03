@@ -40,6 +40,18 @@ Nothing is deployed. See
 [Testing constructs](https://docs.aws.amazon.com/cdk/v2/guide/testing.html)
 in the AWS CDK guide.
 
+```mermaid
+flowchart LR
+    test["tests/unit/test_NN_topic.py"] --> clean["autouse fixture<br/>removes every CDK_* variable"]
+    clean --> mp["monkeypatch.setenv(...)<br/>only the variable under test"]
+    mp --> synth["cdk.App() + STACK_CLASS(...,<br/>config=config fixture)"]
+    synth --> tmpl["Template.from_stack(stack)<br/>(what cdk synth would write)"]
+    tmpl --> assert["resource_count_is(),<br/>has_resource_properties(),<br/>the mandatory tags"]
+    assert --> ok{"pass?"}
+    ok -- "yes" --> next(["deploy to floci"])
+    ok -- "no" --> fix(["fix stack.py -<br/>nothing was deployed"])
+```
+
 ## Running the tests
 
 ```bash

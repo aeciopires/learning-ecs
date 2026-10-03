@@ -46,6 +46,24 @@ guide covers what they have in common. Metrics are described in
 6. **Ask what changed**: a deployment (`DeploymentCount`, the deployment
    history), a scaling activity, a dependency.
 
+The same method as a decision tree - each leaf is a section below:
+
+```mermaid
+flowchart TD
+    start(["something is wrong"]) --> q1{"runningCount ==<br/>desiredCount?"}
+    q1 -- "no" --> ev["read the service events<br/>and the stopped tasks"]
+    ev --> q2{"what do they say?"}
+    q2 -- "'unable to place a task',<br/>'Capacity is unavailable'" --> place["Tasks can't be placed"]
+    q2 -- "CannotPullContainerError,<br/>ResourceInitializationError" --> nostart["Tasks don't start"]
+    q2 -- "EssentialContainerExited,<br/>OutOfMemoryError,<br/>'is unhealthy in target-group'" --> stop["Tasks start, then stop"]
+    q1 -- "yes" --> q3{"what is failing?"}
+    q3 -- "clients get 502/503/504" --> lb["Load balancer errors"]
+    q3 -- "a deployment hangs<br/>or rolls back" --> dep["Deployments that hang,<br/>fail or roll back"]
+    q3 -- "desired count<br/>doesn't change" --> scale["Scaling that doesn't happen"]
+    q3 -- "app logs: timeout, auth,<br/>AccessDenied" --> data["Tasks can't reach a<br/>database, cache or queue"]
+    q3 -- "only on floci" --> fl["floci-specific problems"]
+```
+
 ## The command toolbox
 
 ```bash
@@ -79,6 +97,24 @@ aws ecs wait services-stable --cluster "$C" --services "$S"
 ```
 
 ## Tasks don't start
+
+A task goes through these states (`lastStatus`), from
+[Amazon ECS task lifecycle](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-lifecycle-explanation.html).
+Knowing the state a task died in narrows the cause:
+
+```mermaid
+flowchart TB
+    P["PROVISIONING<br/>awsvpc: the task's network interface is created"] --> PE
+    PE["PENDING<br/>waits for capacity"] --> A
+    A["ACTIVATING<br/>image pull, containers created, networking,<br/>target group registration"] --> R
+    R(["RUNNING"]) --> D
+    D["DEACTIVATING<br/>target group deregistration"] --> S
+    S["STOPPING<br/>STOPSIGNAL (SIGTERM by default),<br/>SIGKILL after stopTimeout"] --> DP
+    DP["DEPROVISIONING<br/>the network interface is removed"] --> ST(["STOPPED<br/>stopCode, stoppedReason"])
+    PE -. "placement problems" .-> place["Tasks can't be placed"]
+    A -. "pull / secrets / logs errors" .-> init["Tasks don't start<br/>(this section)"]
+    R -. "crash, OOM, failed health checks" .-> crash["Tasks start, then stop"]
+```
 
 ### Stopped task error categories
 
@@ -128,6 +164,25 @@ The **task role** (not the execution role) is what the application uses
 afterwards (S3, SQS, ...) - `AccessDenied` in the application's logs points
 there (modules 14, 15).
 
+```mermaid
+sequenceDiagram
+    autonumber
+    participant ECS as ECS / Fargate agent<br/>(task execution role)
+    participant Reg as Registry<br/>(Docker Hub, ECR)
+    participant Sec as Secrets Manager / SSM
+    participant Logs as CloudWatch Logs
+    participant App as your container<br/>(task role)
+    participant AWS as S3, SQS, SNS, ...
+    ECS->>Reg: pull the image
+    Note over ECS,Reg: fails: CannotPullContainerError
+    ECS->>Sec: GetSecretValue / GetParameters
+    Note over ECS,Sec: fails: ResourceInitializationError
+    ECS->>Logs: create the log stream (awslogs)
+    ECS->>App: start the container with the secrets as env vars
+    App->>AWS: API calls with the task role
+    Note over App,AWS: fails: AccessDenied in the app's logs
+```
+
 ## Tasks start, then stop
 
 | Evidence | Cause | Fix |
@@ -163,6 +218,21 @@ From [Troubleshoot your Application Load Balancers](https://docs.aws.amazon.com/
 | `504` | the ALB | the target didn't answer in time: slow app, security group or NACL blocking the target port, idle timeout |
 | `460` | the ALB | the client closed the connection before the idle timeout |
 | `5XX` counted in `HTTPCode_Target_5XX_Count` | your tasks | the application - read its logs |
+
+Who answered the error tells you where to look:
+
+```mermaid
+flowchart LR
+    client["client"] --> alb["ALB"]
+    alb -- "no healthy target" --> e503["503 from the ALB"]
+    alb -- "connection reset /<br/>bad response" --> e502["502 from the ALB"]
+    alb -- "no answer in time" --> e504["504 from the ALB"]
+    alb -- "forwarded" --> task["task"]
+    task -- "the app returns 5XX" --> t5["5XX from the task"]
+```
+
+The ALB's own 502, 503 and 504 count in `HTTPCode_ELB_5XX_Count`; the
+application's in `HTTPCode_Target_5XX_Count` ([`METRICS.md`](METRICS.md#load-balancers)).
 
 Target health `Target.ResponseCodeMismatch` (wrong status from the health
 check path), `Target.Timeout`, `Target.FailedHealthChecks`. Health checks

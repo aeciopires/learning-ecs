@@ -59,6 +59,30 @@ This module builds that setup the way AWS recommends today:
 
 ## Architecture
 
+```mermaid
+flowchart TB
+    subgraph cl["ECS cluster learning-ecs-dev-ecs-ec2"]
+        cp["capacity provider learning-ecs-dev-ec2-asg-cp<br/>managed scaling, target CDK_EC2_TARGET_CAPACITY %"]
+    end
+    cp -- "sets DesiredCapacity" --> asg
+    subgraph asg["Auto Scaling group learning-ecs-dev-ec2-asg - min CDK_EC2_MIN_CAPACITY .. max CDK_EC2_MAX_CAPACITY"]
+        subgraph ia["instance, AZ a"]
+            aa["ECS agent"]
+            na["node-exporter<br/>DAEMON, host network"]
+            wa["web task<br/>REPLICA, awsvpc ENI"]
+        end
+        subgraph ib["instance, AZ b"]
+            ab["ECS agent"]
+            nb["node-exporter<br/>DAEMON, host network"]
+            wb["web task<br/>REPLICA, awsvpc ENI"]
+        end
+    end
+    pl["web placement: spread(attribute:ecs.availability-zone),<br/>then binpack(memory)"] -.-> wa & wb
+```
+
+<details>
+<summary>Plain-text version (names and details)</summary>
+
 ```
  ECS cluster learning-ecs-dev-ecs-ec2
    capacity provider learning-ecs-dev-ec2-asg-cp  (managed scaling, target CDK_EC2_TARGET_CAPACITY %)
@@ -72,6 +96,8 @@ This module builds that setup the way AWS recommends today:
    +-----------------------------------------+   +----------------------------------------+
    web placement: spread(attribute:ecs.availability-zone), then binpack(memory)
 ```
+
+</details>
 
 ## AWS services and CDK constructs used
 

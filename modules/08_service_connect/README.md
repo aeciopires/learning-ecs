@@ -53,6 +53,23 @@ as a reverse proxy) --`http://api:80` over Service Connect--> **`api`**
 
 ## Architecture
 
+```mermaid
+flowchart LR
+    inet(["internet"]) --> alb["ALB learning-ecs-dev-sc-alb"]
+    alb --> fapp
+    subgraph fe["frontend tasks"]
+        fapp["nginx<br/>proxy_pass http://api:80"] --> fpx["Service Connect proxy<br/>(client only)"]
+    end
+    fpx -- "round-robin, outlier detection,<br/>retries" --> apx
+    subgraph be["api tasks"]
+        apx["Service Connect proxy<br/>(client-server: 'api:80')"] --> aapp["whoami :80<br/>port name 'http', appProtocol http"]
+    end
+    ns["Cloud Map HTTP namespace learning-ecs-dev.local<br/>(cluster default; no Route 53 zone)"] -.- fpx & apx
+```
+
+<details>
+<summary>Plain-text version (names and details)</summary>
+
 ```
  internet -> ALB learning-ecs-dev-sc-alb -> frontend tasks (nginx, proxy_pass http://api:80)
                                               |  Service Connect proxy (client only)
@@ -63,6 +80,8 @@ as a reverse proxy) --`http://api:80` over Service Connect--> **`api`**
 
  Cloud Map HTTP namespace learning-ecs-dev.local  (cluster default; no Route 53 zone)
 ```
+
+</details>
 
 ## Internal ALB, Service Connect or Cloud Map DNS?
 

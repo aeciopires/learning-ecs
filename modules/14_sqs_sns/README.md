@@ -56,6 +56,21 @@ image (no custom code - just shell loops around `aws sns publish` and
 
 ## Architecture
 
+```mermaid
+flowchart TB
+    prod["producer task"] -- "sns:Publish" --> topic["SNS topic learning-ecs-dev-sns-orders"]
+    topic -- "raw delivery,<br/>every message" --> qb["SQS learning-ecs-dev-sqs-billing"]
+    topic -- "raw delivery,<br/>filter: kind = order" --> qs["SQS learning-ecs-dev-sqs-shipping"]
+    qb -- "redrive after 3 receives" --> dlqb["...-billing-dlq"]
+    qs -- "redrive after 3 receives" --> dlqs["...-shipping-dlq"]
+    cb["billing consumer tasks (1..10)"] -- "poll" --> qb
+    cs["shipping consumer tasks (1..10)"] -- "poll" --> qs
+    sc["step scaling on ApproximateNumberOfMessagesVisible<br/>0: -1 · 10 or more: +1 · 100 or more: +3 · 500 or more: +5"] -.-> cb & cs
+```
+
+<details>
+<summary>Plain-text version (names and details)</summary>
+
 ```
  producer task --sns:Publish--> SNS topic learning-ecs-dev-sns-orders
                                    |  (raw delivery)              |  filter: kind = order
@@ -68,6 +83,8 @@ image (no custom code - just shell loops around `aws sns publish` and
        billing consumer tasks (1..10)            shipping consumer tasks (1..10)
        step scaling on ApproximateNumberOfMessagesVisible: 0 -> -1, >=10 -> +1, >=100 -> +3, >=500 -> +5
 ```
+
+</details>
 
 ## AWS services and CDK constructs used
 

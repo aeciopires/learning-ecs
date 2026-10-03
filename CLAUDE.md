@@ -73,6 +73,7 @@ documentation is **en-US**.
 │   ├── database.py   # generated credentials, secrets referenced by name
 │   └── apps.py       # Docker Hub images and commands shared by several modules
 ├── docs/
+│   ├── ARCHITECTURE.md      # how app.py, shared/ and the modules fit together (diagrams)
 │   ├── LEARNING-PATH.md     # the 21 modules in 6 phases
 │   ├── TESTING.md           # how the unit tests work and how to write one
 │   ├── METRICS.md           # every metric the path uses, by namespace/tool
@@ -238,6 +239,19 @@ alb_name = bounded_name(config.product, config.environment, "alb", "web", max_le
 - Relative links only (`../../REQUIREMENTS.md#9-flexible-configuration`).
 - Tables for comparisons; every README ends with `## References` (official
   sources only).
+- **Diagrams are Mermaid** (` ```mermaid ` blocks, which GitHub renders) -
+  no image files to keep in sync. Use `flowchart`, `sequenceDiagram` or
+  `stateDiagram-v2` only; labels in double quotes, `<br/>` for line breaks,
+  `{placeholder}` instead of `<placeholder>`, and no node ids that are
+  Mermaid keywords (`end`, `call`, `click`, `class`, `style`, ...).
+  A diagram shows only what the code or an observed floci run shows - the
+  same rule as section 4. Render it before committing (e.g.
+  `npx -p @mermaid-js/mermaid-cli mmdc -i diagram.mmd -o diagram.svg`) to
+  catch syntax errors and unreadable layouts.
+- A module's "Architecture" section starts with a Mermaid diagram, followed
+  by the plain-text diagram (exact names, CIDRs, ports) inside
+  `<details><summary>Plain-text version (names and details)</summary>` -
+  keep both in sync.
 - Commands are copy-pasteable, with the expected output as a comment when it
   helps; placeholders look like `<your-aws-cli-profile>`.
 

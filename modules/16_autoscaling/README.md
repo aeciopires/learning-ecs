@@ -63,6 +63,24 @@ Step scaling (alarm thresholds -> fixed adjustments) is shown in
 
 ## Architecture
 
+```mermaid
+flowchart LR
+    load["load task<br/>(curl x WORKERS)"] -- "HTTP" --> alb["ALB learning-ecs-dev-alb-scale<br/>(floci: :8091)"]
+    alb --> svc["service learning-ecs-dev-scale-web<br/>2..10 tasks"]
+    subgraph aas["Application Auto Scaling - scalable target service/learning-ecs-dev-ecs-scale/learning-ecs-dev-scale-web"]
+        cpu["target tracking: CPU 60 %<br/>AWS/ECS CPUUtilization"]
+        mem["target tracking: memory 75 %<br/>AWS/ECS MemoryUtilization"]
+        req["target tracking: 1000 requests per task<br/>AWS/ApplicationELB RequestCountPerTarget"]
+        sch["scheduled: Mon-Fri 08:00 min=4,<br/>Mon-Fri 20:00 min=2<br/>(CDK_AUTOSCALING_TIMEZONE)"]
+    end
+    svc -. "metrics" .-> cpu & mem
+    alb -. "metrics" .-> req
+    aas -- "UpdateService desiredCount" --> svc
+```
+
+<details>
+<summary>Plain-text version (names and details)</summary>
+
 ```
  load task (curl x WORKERS) --HTTP--> ALB learning-ecs-dev-alb-scale :8091 --> service learning-ecs-dev-scale-web (2..10 tasks)
                                                                                       ^
@@ -74,6 +92,8 @@ Step scaling (alarm thresholds -> fixed adjustments) is shown in
                      |  UpdateService desiredCount
                      +-------------------------------------------------------------------------^
 ```
+
+</details>
 
 ## AWS services and CDK constructs used
 

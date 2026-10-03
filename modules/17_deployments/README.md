@@ -65,6 +65,22 @@ outside with `curl`.
 
 ## Architecture
 
+```mermaid
+flowchart LR
+    subgraph alb["ALB learning-ecs-dev-alb-deploy"]
+        prodl["production listener<br/>(floci: :8092), rule /*"]
+        testl["test listener (floci: :8093), rule /*<br/>only the VPC or CDK_DEPLOYMENT_TEST_CIDR<br/>(blue_green, canary, linear only)"]
+    end
+    prodl --> blue["blue TG<br/>learning-ecs-dev-tg-deploy-blue"]
+    testl --> green["green TG<br/>learning-ecs-dev-tg-deploy-green"]
+    blue --> live["tasks of the live revision"]
+    green --> newrev["new revision,<br/>before it goes live"]
+    svc["service learning-ecs-dev-deploy-web (2 tasks)<br/>rolling: circuit breaker (rollback) +<br/>alarm learning-ecs-dev-deploy-target-5xx (rollback)<br/>blue/green: ECS moves the two rules between<br/>blue and green, bake time, alarm rollback"] -.-> live & newrev
+```
+
+<details>
+<summary>Plain-text version (names and details)</summary>
+
 ```
                           ALB learning-ecs-dev-alb-deploy
  production :8092 --rule /*--> blue TG  (learning-ecs-dev-tg-deploy-blue)   <-- tasks of the live revision
@@ -76,6 +92,8 @@ outside with `curl`.
    blue/green:  ECS moves the two rules between blue and green (role with AmazonECSInfrastructureRolePolicyForLoadBalancers),
                 bake time, alarm rollback
 ```
+
+</details>
 
 ## AWS services and CDK constructs used
 

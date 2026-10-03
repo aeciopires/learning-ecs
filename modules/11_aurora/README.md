@@ -55,6 +55,27 @@ everything else to `api-write`.
 
 ## Architecture
 
+```mermaid
+flowchart LR
+    inet(["internet"]) --> alb["ALB learning-ecs-dev-aurora-alb"]
+    alb -- "rule 10: method GET, HEAD" --> rd["api-read tasks (PostgREST)"]
+    alb -- "default: POST, PATCH, ..." --> wr["api-write tasks (PostgREST)"]
+    subgraph aur["Aurora PostgreSQL cluster learning-ecs-dev-aurora-postgresql (isolated subnets)"]
+        w["writer<br/>promotion tier 0"]
+        r1["reader1<br/>tier 1, scales with the writer"]
+        r2["reader2 ...<br/>(CDK_AURORA_READERS)"]
+        vol[("one cluster volume,<br/>replicated across 3 AZs")]
+        w & r1 & r2 --- vol
+    end
+    wr -- "cluster endpoint" --> w
+    rd -- "reader endpoint" --> r1 & r2
+    cli["aws ecs run-task<br/>(postgres client): migration"] -- "cluster endpoint" --> w
+    mysql["CDK_AURORA_ENGINE=mysql:<br/>Aurora MySQL + WordPress on the<br/>cluster endpoint (no read/write split)"] -.- aur
+```
+
+<details>
+<summary>Plain-text version (names and details)</summary>
+
 ```
  internet -> ALB learning-ecs-dev-aurora-alb
                rule 10: method GET|HEAD -> api-read tasks  -- PGRST_DB_URI=...@<reader endpoint>
@@ -67,6 +88,8 @@ everything else to `api-write`.
  aws ecs run-task (client: postgres image) -> migration on the cluster endpoint
  CDK_AURORA_ENGINE=mysql: Aurora MySQL + WordPress on the cluster endpoint (no split)
 ```
+
+</details>
 
 ## RDS instance or Aurora cluster?
 

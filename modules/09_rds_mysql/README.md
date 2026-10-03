@@ -56,6 +56,18 @@ database safely:
 
 ## Architecture
 
+```mermaid
+flowchart LR
+    inet(["internet"]) --> alb["ALB learning-ecs-dev-rds-mysql-alb<br/>public subnets, sticky sessions"]
+    alb --> wp["WordPress tasks<br/>private subnets, 512 CPU / 1 GiB<br/>WORDPRESS_DB_HOST, _USER, _NAME (env)"]
+    sm["Secrets Manager"] -- "WORDPRESS_DB_PASSWORD<br/>(execution role, at task start)" --> wp
+    wp -- "3306" --> db[("RDS for MySQL<br/>learning-ecs-dev-rds-mysql<br/>isolated subnets [+ standby in AZ b]<br/>SG: only the WordPress and client-task SGs")]
+    cli["aws ecs run-task<br/>family learning-ecs-dev-rds-mysql-client<br/>(mysql:8.4)"] -- "3306" --> db
+```
+
+<details>
+<summary>Plain-text version (names and details)</summary>
+
 ```
  internet -> ALB learning-ecs-dev-rds-mysql-alb (public subnets, sticky sessions)
                -> WordPress tasks (private subnets; 512 CPU / 1 GiB)
@@ -68,6 +80,8 @@ database safely:
 
  aws ecs run-task (family learning-ecs-dev-rds-mysql-client, image mysql:8.4) -> same database
 ```
+
+</details>
 
 ## AWS services and CDK constructs used
 

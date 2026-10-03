@@ -63,6 +63,36 @@ with built-in Prometheus metrics - answering `/`, `/error` (500) and
 
 ## Architecture
 
+```mermaid
+flowchart TB
+    users(["users"]) -- ":80 (floci: 8080)" --> palb
+    you(["you, from CDK_MONITORING_ALLOWED_CIDR"]) -- ":9090 (floci: 8096), :3000 (floci: 8097)" --> palb
+    palb["public ALB learning-ecs-dev-alb-prom"]
+    palb -- "app listener" --> caddy
+    palb -- "Grafana UI" --> graf
+    palb -- "Prometheus UI" --> prom
+    subgraph web["service learning-ecs-dev-prom-web (2 tasks)"]
+        direction LR
+        adot["adot-collector"] -- "scrape localhost:2019" --> caddy["app: caddy :80<br/>metrics :2019"]
+    end
+    subgraph self["CDK_PROMETHEUS_BACKEND=self_hosted (default)"]
+        ialb["internal ALB learning-ecs-dev-alb-prom-int :9090"]
+        prom["service learning-ecs-dev-prom-server<br/>prom/prometheus, 1 task<br/>remote-write receiver, alert rules"]
+        graf["service learning-ecs-dev-prom-grafana<br/>grafana, 1 task"]
+        ialb --> prom
+        graf -- "queries" --> ialb
+    end
+    subgraph managed["CDK_PROMETHEUS_BACKEND=amp"]
+        amp["AMP workspace learning-ecs-dev-amp-prom"]
+        amg["Amazon Managed Grafana or awscurl"] --> amp
+    end
+    adot -- "remote write" --> ialb
+    adot -. "SigV4 remote write" .-> amp
+```
+
+<details>
+<summary>Plain-text version (names and details)</summary>
+
 ```
  self_hosted:
                          public ALB learning-ecs-dev-alb-prom
@@ -79,6 +109,8 @@ with built-in Prometheus metrics - answering `/`, `/error` (500) and
    adot-collector --SigV4 remote write--> AMP workspace learning-ecs-dev-amp-prom <-- Amazon Managed Grafana / awscurl
  (ports in parentheses: floci, from .env.example)
 ```
+
+</details>
 
 ## AWS services and CDK constructs used
 

@@ -70,6 +70,28 @@ reference for every metric is [`../../docs/METRICS.md`](../../docs/METRICS.md).
 
 ## Architecture
 
+```mermaid
+flowchart LR
+    load["load task (curl)"] --> alb["ALB (floci: :8095)"]
+    alb --> svc["service learning-ecs-dev-obs-web<br/>nginx, 2 tasks,<br/>health check, restart policy"]
+    svc -- "awslogs (JSON lines)" --> lg["log group<br/>/ecs/learning-ecs/dev/obs-web"]
+    subgraph met["metrics"]
+        m1["learning-ecs/dev Http5xxCount<br/>(metric filter http-5xx)"]
+        m2["learning-ecs/dev RequestTime<br/>(metric filter request-time)"]
+        ci["ECS/ContainerInsights<br/>(cluster learning-ecs-dev-ecs-obs,<br/>enhanced)"]
+        auto["AWS/ECS, AWS/ApplicationELB<br/>(automatic)"]
+    end
+    lg --> m1 & m2
+    lg -.- q["saved Logs Insights queries"]
+    met --> al["alarms: obs-app-5xx, obs-unhealthy-targets,<br/>obs-high-cpu, obs-tasks-below-desired"]
+    al --> sns["SNS learning-ecs-dev-sns-alarms<br/>(-> e-mail)"]
+    met & al & q --> dash["dashboard learning-ecs-dev-obs"]
+    ev["EventBridge rule: aws.ecs,<br/>ECS Task State Change, STOPPED"] --> sl["log group /aws/events/<br/>learning-ecs/dev/obs-stopped-tasks"]
+```
+
+<details>
+<summary>Plain-text version (names and details)</summary>
+
 ```
  load task (curl) --> ALB :8095 --> service learning-ecs-dev-obs-web (nginx, 2 tasks, health check, restart policy)
                                         | awslogs (JSON lines)
@@ -85,6 +107,8 @@ reference for every metric is [`../../docs/METRICS.md`](../../docs/METRICS.md).
  dashboard learning-ecs-dev-obs: alarms, ALB, logs metrics, tasks, CPU/memory, Logs Insights widgets
  EventBridge rule (aws.ecs, ECS Task State Change, STOPPED) --> log group /aws/events/learning-ecs/dev/obs-stopped-tasks
 ```
+
+</details>
 
 ## AWS services and CDK constructs used
 

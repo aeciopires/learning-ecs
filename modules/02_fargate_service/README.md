@@ -68,6 +68,22 @@ this module is about what a service does on its own.
 
 ## Architecture
 
+```mermaid
+flowchart LR
+    ssm["SSM parameter"] -- "execution role" --> cl
+    sm["Secrets Manager secret"] -- "execution role" --> cl
+    hub[("Docker Hub<br/>nginx")] -- "image pull" --> cl
+    subgraph cl["ECS cluster learning-ecs-dev-ecs-fargate"]
+        svc["service learning-ecs-dev-fargate-web<br/>desired = 2<br/>capacity: FARGATE (base 1) [+ FARGATE_SPOT]"]
+        svc --> ta["task<br/>AZ a, private subnet"]
+        svc --> tb["task<br/>AZ b, private subnet"]
+    end
+    ta & tb -- "awslogs driver" --> logs["CloudWatch Logs<br/>/ecs/learning-ecs/dev/fargate"]
+```
+
+<details>
+<summary>Plain-text version (names and details)</summary>
+
 ```
  SSM parameter ----+                       ECS cluster  learning-ecs-dev-ecs-fargate
  Secrets Manager --+--(execution role)--> +------------------------------------------------+
@@ -76,6 +92,8 @@ this module is about what a service does on its own.
  CloudWatch Logs <--- awslogs driver ---- |   task (AZ a, private subnet)  task (AZ b)     |
  /ecs/learning-ecs/dev/fargate            +------------------------------------------------+
 ```
+
+</details>
 
 ## AWS services and CDK constructs used
 

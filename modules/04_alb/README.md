@@ -62,6 +62,20 @@ you can *see* the load balancing:
 
 ## Architecture
 
+```mermaid
+flowchart LR
+    inet(["internet"]) --> pub["ALB learning-ecs-dev-alb-public<br/>public subnets, SG: 0.0.0.0/0 on the listener port<br/>listener :80 (or :443 + redirect when<br/>CDK_ALB_CERTIFICATE_ARN is set)"]
+    pub -- "rule 10: /admin, /admin/*" --> f403["fixed 403"]
+    pub -- "default" --> tgw["TG learning-ecs-dev-tg-alb-web<br/>ip targets, GET /health"]
+    tgw --> web["web tasks<br/>AZ a, AZ b"]
+    vpcc(["inside the VPC"]) --> int["ALB learning-ecs-dev-alb-internal<br/>private subnets, SG: VPC CIDR only<br/>listener :80"]
+    int --> tga["TG learning-ecs-dev-tg-alb-api"]
+    tga --> api["api tasks<br/>AZ a, AZ b"]
+```
+
+<details>
+<summary>Plain-text version (names and details)</summary>
+
 ```
  internet ──> ALB learning-ecs-dev-alb-public  (public subnets, SG: 0.0.0.0/0 on the listener port)
                  listener :80  (or :443 + redirect when CDK_ALB_CERTIFICATE_ARN is set)
@@ -72,6 +86,8 @@ you can *see* the load balancing:
  inside the VPC ──> ALB learning-ecs-dev-alb-internal  (private subnets, SG: VPC CIDR only)
                       listener :80 -> TG learning-ecs-dev-tg-alb-api -> api tasks (AZ a, AZ b)
 ```
+
+</details>
 
 ## AWS services and CDK constructs used
 

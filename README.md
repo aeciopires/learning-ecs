@@ -2,6 +2,7 @@
 
 - [learning-ecs](#learning-ecs)
   - [What you get](#what-you-get)
+  - [How it works](#how-it-works)
   - [Quickstart (local, free)](#quickstart-local-free)
   - [The modules](#the-modules)
   - [How each module is organized](#how-each-module-is-organized)
@@ -40,6 +41,23 @@ them with CloudWatch, Prometheus/Grafana and Datadog.
 - **Honest floci notes**: each module lists what floci emulates and what
   needs real AWS ([`REQUIREMENTS.md` section 10](REQUIREMENTS.md#10-floci-vs-real-aws)).
 - Unit tests for every stack (`uv run pytest`, ~99% coverage).
+
+## How it works
+
+```mermaid
+flowchart LR
+    env[".env<br/>CDK_* settings"] --> app["uv run cdk deploy {StackId}<br/>app.py + modules/NN_topic/stack.py<br/>+ shared/"]
+    app --> tpl[("CloudFormation<br/>template")]
+    tpl --> floci["floci on localhost:4566<br/>(free - tasks run as<br/>Docker containers)"]
+    tpl -. "optional" .-> aws["real AWS account<br/>(billed)"]
+    floci --> curl["curl localhost:8081<br/>aws ecs ... commands"]
+```
+
+Each module is a separate CDK stack with its own VPC, so you can deploy
+and destroy any of them on its own; they share code in `shared/`, not
+resources. The full picture - how `app.py` finds the modules, where each
+setting comes from, what floci runs - is in
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ## Quickstart (local, free)
 
@@ -92,6 +110,7 @@ sources).
 | File | What's in it |
 |---|---|
 | [`REQUIREMENTS.md`](REQUIREMENTS.md) | install, floci, bootstrap, ports, tagging and naming, configuration, floci vs real AWS |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | how the code becomes stacks: `app.py`, `shared/`, settings, names, floci vs AWS - with diagrams |
 | [`docs/LEARNING-PATH.md`](docs/LEARNING-PATH.md) | the 21 modules in order |
 | [`docs/METRICS.md`](docs/METRICS.md) | every metric used, in CloudWatch, Prometheus and Datadog |
 | [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) | from symptom to cause and fix |

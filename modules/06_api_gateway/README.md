@@ -60,6 +60,21 @@ request it received - handy to see exactly what API Gateway forwards.
 
 ## Architecture
 
+```mermaid
+flowchart LR
+    client(["client"]) -- "HTTPS" --> q{"CDK_APIGW_TYPE"}
+    q -- "rest (default)" --> restapi["REST API (regional), stage {env}<br/>throttling, access logs<br/>ANY / and ANY /{proxy+}"]
+    q -- "http" --> httpapi["HTTP API, $default stage<br/>(auto-deploy)<br/>ANY /{proxy+}"]
+    restapi -- "HTTP_PROXY via VPC link" --> nlb["internal NLB :80"]
+    httpapi -- "HTTP_PROXY via VPC link" --> alb["internal ALB listener"]
+    nlb & alb --> tasks["whoami tasks"]
+    restapi & httpapi -. "CDK_APIGW_CONNECTION=internet<br/>(floci): no VPC link" .-> pub["internet-facing load balancer<br/>(or CDK_APIGW_BACKEND_URL)"]
+    pub -.-> tasks
+```
+
+<details>
+<summary>Plain-text version (names and details)</summary>
+
 ```
  CDK_APIGW_TYPE=rest, CDK_APIGW_CONNECTION=vpc_link (default)
    client --HTTPS--> REST API (regional) stage <env>  [throttling, access logs]
@@ -73,6 +88,8 @@ request it received - handy to see exactly what API Gateway forwards.
  CDK_APIGW_CONNECTION=internet (floci): same, but the load balancer is internet-facing and
  API Gateway calls its URL (or CDK_APIGW_BACKEND_URL) - no VPC link.
 ```
+
+</details>
 
 ## REST API or HTTP API?
 

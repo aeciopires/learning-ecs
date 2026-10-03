@@ -53,6 +53,19 @@ traffic from their NLB's security group.
 
 ## Architecture
 
+```mermaid
+flowchart LR
+    inet(["internet"]) -- "TCP" --> pub["NLB learning-ecs-dev-nlb-public<br/>public subnets<br/>SG: 0.0.0.0/0 on the listener port"]
+    pub -- "listener TCP :80" --> tgp["TG learning-ecs-dev-tg-nlb-public<br/>TCP, ip targets,<br/>HTTP health check /health"]
+    tgp --> tp["nlb-public tasks<br/>task SG: only from the NLB's SG, port 80"]
+    vpcc(["inside the VPC"]) -- "TCP" --> int["NLB learning-ecs-dev-nlb-internal<br/>private subnets<br/>SG: VPC CIDR only"]
+    int -- "listener TCP :80" --> tgi["TG learning-ecs-dev-tg-nlb-internal"]
+    tgi --> ti["nlb-internal tasks"]
+```
+
+<details>
+<summary>Plain-text version (names and details)</summary>
+
 ```
  internet ──TCP──> NLB learning-ecs-dev-nlb-public  (public subnets, SG: 0.0.0.0/0 on the listener port)
                      listener TCP :80 -> TG learning-ecs-dev-tg-nlb-public (TCP, ip, HTTP health check /health)
@@ -61,6 +74,8 @@ traffic from their NLB's security group.
  VPC ──TCP──> NLB learning-ecs-dev-nlb-internal (private subnets, SG: VPC CIDR only)
                  listener TCP :80 -> TG learning-ecs-dev-tg-nlb-internal -> nlb-internal tasks
 ```
+
+</details>
 
 ## ALB or NLB?
 

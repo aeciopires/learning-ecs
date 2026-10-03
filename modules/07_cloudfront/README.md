@@ -60,6 +60,19 @@ that door, chosen with `CDK_CLOUDFRONT_ORIGIN`:
 
 ## Architecture
 
+```mermaid
+flowchart LR
+    viewer(["viewer"]) -- "HTTPS<br/>(HTTP redirected)" --> cf["CloudFront distribution<br/>default (*): CachingDisabled,<br/>AllViewerExceptHostHeader<br/>/static/*: CachingOptimized, compressed"]
+    cf -- "CDK_CLOUDFRONT_ORIGIN=public_alb (default)<br/>+ header X-Origin-Verify: secret" --> palb["internet-facing ALB<br/>SG: 0.0.0.0/0, or only the<br/>CloudFront prefix list"]
+    palb -- "rule 10: X-Origin-Verify == secret" --> t1["whoami tasks"]
+    palb -- "default" --> f403["fixed 403 'forbidden'"]
+    cf -- "CDK_CLOUDFRONT_ORIGIN=vpc_origin<br/>service-managed ENIs<br/>in your private subnets" --> ialb["internal ALB<br/>SG: CloudFront prefix list"]
+    ialb --> t2["whoami tasks"]
+```
+
+<details>
+<summary>Plain-text version (names and details)</summary>
+
 ```
  CDK_CLOUDFRONT_ORIGIN=public_alb (default)
    viewer --HTTPS--> CloudFront distribution  (HTTP -> HTTPS redirect)
@@ -75,6 +88,8 @@ that door, chosen with `CDK_CLOUDFRONT_ORIGIN`:
    viewer --HTTPS--> CloudFront -- VPC origin (service-managed ENIs in your private subnets) -->
                      internal ALB [SG: CloudFront prefix list] -> whoami tasks
 ```
+
+</details>
 
 ## AWS services and CDK constructs used
 

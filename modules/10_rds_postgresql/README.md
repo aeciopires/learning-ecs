@@ -61,6 +61,18 @@ patterns) and adds three things you meet at scale:
 
 ## Architecture
 
+```mermaid
+flowchart LR
+    inet(["internet"]) --> alb["ALB learning-ecs-dev-rds-pg-alb<br/>health check: GET /ready on port 3001"]
+    alb --> api["PostgREST tasks :3000<br/>schema 'api', anonymous role web_anon<br/>PGRST_DB_URI=postgres://authenticator@...:5432/app"]
+    sec["secret learning-ecs-dev-secret-rds-postgres-app"] -- "PGPASSWORD" --> api
+    api -- "5432" --> db[("RDS for PostgreSQL<br/>learning-ecs-dev-rds-postgres<br/>isolated subnets<br/>SG: only the API and client-task SGs")]
+    cli["aws ecs run-task<br/>family learning-ecs-dev-rds-postgres-client<br/>(postgres:17-alpine)<br/>default: the migration<br/>with SQL=...: any statement as pgadmin"] -- "5432" --> db
+```
+
+<details>
+<summary>Plain-text version (names and details)</summary>
+
 ```
  internet -> ALB learning-ecs-dev-rds-pg-alb  (health check: GET /ready on port 3001)
                -> PostgREST tasks :3000 (schema "api", anonymous role web_anon)
@@ -74,6 +86,8 @@ patterns) and adds three things you meet at scale:
    default: the migration  (schema api, table api.todos, roles web_anon + authenticator, NOTIFY pgrst)
    with SQL=...: any statement, as the master user pgadmin
 ```
+
+</details>
 
 ## AWS services and CDK constructs used
 

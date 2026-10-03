@@ -64,6 +64,28 @@ everything deploys and runs, but nothing is accepted by Datadog.
 
 ## Architecture
 
+```mermaid
+flowchart LR
+    load["load task (curl)"] --> alb["ALB (floci: :8098)"]
+    alb --> app
+    subgraph t["each of the 2 tasks of service learning-ecs-dev-dd-web"]
+        app["app: nginx :80, stub_status :81<br/>env DD_ENV, DD_SERVICE, DD_VERSION<br/>labels com.datadoghq.tags.*"]
+        agent["datadog-agent (ECS_FARGATE)<br/>task metrics from the<br/>metadata endpoint"]
+        fl["log_router<br/>(Fluent Bit)"]
+        agent -- "NGINX check<br/>(Autodiscovery)" --> app
+        app -- "DogStatsD localhost:8125/udp,<br/>traces localhost:8126" --> agent
+        app -- "logDriver awsfirelens" --> fl
+    end
+    agent --> ddm["Datadog metrics / APM"]
+    fl --> ddl["Datadog logs"]
+    sm["Secrets Manager<br/>learning-ecs-dev-secret-datadog-api-key"] -- "DD_API_KEY" --> agent
+    sm -- "apikey" --> fl
+    agent & fl -. "their own output only" .-> cwl["CloudWatch Logs"]
+```
+
+<details>
+<summary>Plain-text version (names and details)</summary>
+
 ```
  load task (curl) --> ALB :8098 --> service learning-ecs-dev-dd-web (2 tasks), each task:
    +-----------------------------------------------------------------------------------------+
@@ -76,6 +98,8 @@ everything deploys and runs, but nothing is accepted by Datadog.
  Secrets Manager learning-ecs-dev-secret-datadog-api-key --> DD_API_KEY (agent), apikey (FireLens)
  CloudWatch Logs: only the agent's and the log router's own output (for their troubleshooting)
 ```
+
+</details>
 
 ## AWS services and CDK constructs used
 

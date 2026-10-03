@@ -41,6 +41,25 @@ below is real AWS.
 | Your application, Prometheus format | Prometheus / Amazon Managed Service for Prometheus | your Prometheus, or AMP pricing | whatever the app exposes | ADOT collector sidecar | 20 |
 | Datadog Agent | `ecs.fargate.*`, integrations | Datadog pricing | container | Agent sidecar | 21 |
 
+The same sources as a picture - three independent paths you can use
+alone or together:
+
+```mermaid
+flowchart LR
+    subgraph task["an ECS task"]
+        app["app container"]
+        adot["ADOT collector<br/>sidecar (module 20)"]
+        dd["Datadog Agent<br/>sidecar (module 21)"]
+    end
+    svc["ECS service"] --> ecsns["AWS/ECS<br/>(always on)"]
+    cl["ECS cluster with<br/>containerInsights on<br/>(module 19)"] --> ci["ECS/ContainerInsights"]
+    lbs["ALB, NLB, RDS,<br/>SQS, ..."] --> awsns["AWS/ApplicationELB,<br/>AWS/RDS, AWS/SQS, ..."]
+    app -- "logs (awslogs)" --> logs["CloudWatch Logs"] -- "metric filters" --> custom["custom namespace"]
+    ecsns & ci & awsns & custom --> cw["CloudWatch alarms<br/>and dashboards"]
+    app -- "/metrics scraped" --> adot -- "remote write" --> prom["Prometheus or Amazon<br/>Managed Service for Prometheus"] --> graf["Grafana"]
+    app -. "checks via<br/>Autodiscovery" .-> dd --> ddog["Datadog"]
+```
+
 ## The four golden signals for an ECS service
 
 | Signal | CloudWatch | Watch for |

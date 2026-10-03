@@ -59,6 +59,21 @@ credentials endpoint ECS provides to the task.
 
 ## Architecture
 
+```mermaid
+flowchart LR
+    sch["EventBridge Scheduler<br/>learning-ecs-dev-s3-writer<br/>rate(5 minutes), 2 retries"] -- "ecs:RunTask<br/>(role created by the CDK)" --> w
+    you(["you:<br/>aws ecs run-task"]) --> r
+    subgraph cl["cluster learning-ecs-dev-ecs-s3 - task subnets, egress-only security group"]
+        w["writer task (aws-cli)"]
+        r["reader task (aws-cli)"]
+    end
+    w -- "s3:PutObject reports/*" --> b[("S3 learning-ecs-dev-reports-{account}-{region}<br/>private, SSE-S3, TLS only<br/>lifecycle: reports/ expire after 30 days")]
+    r -- "s3:GetObject, s3:ListBucket" --> b
+```
+
+<details>
+<summary>Plain-text version (names and details)</summary>
+
 ```
  EventBridge Scheduler  learning-ecs-dev-s3-writer  rate(5 minutes), 2 retries
         |  ecs:RunTask (role created by the CDK)
@@ -69,6 +84,8 @@ credentials endpoint ECS provides to the task.
    (aws ecs run-task, on demand)
  both tasks: cluster learning-ecs-dev-ecs-s3, task subnets of the module's VPC, egress-only security group
 ```
+
+</details>
 
 ## AWS services and CDK constructs used
 

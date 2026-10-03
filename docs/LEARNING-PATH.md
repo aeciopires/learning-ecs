@@ -34,6 +34,47 @@ README; set up your machine first with
 - **Real AWS is optional**, per module, and costs money (NAT Gateways, load
   balancers, databases, tasks). Destroy right after.
 
+How the phases build on each other. An arrow means "uses what you learned
+in" - not "must be deployed first": every module is a separate stack
+with its own VPC ([`ARCHITECTURE.md`](ARCHITECTURE.md#modules-share-code-not-resources)).
+
+```mermaid
+flowchart TB
+    subgraph p1["1. Foundations"]
+        m01["01 Network"] --> m02["02 Fargate service"] --> m03["03 EC2 capacity"]
+    end
+    subgraph p2["2. Exposing services"]
+        m04["04 ALB"] ~~~ m05["05 NLB"] ~~~ m06["06 API Gateway"] ~~~ m07["07 CloudFront"] ~~~ m08["08 Service Connect"]
+    end
+    subgraph p3["3. Data and messaging"]
+        m09["09 RDS MySQL"] ~~~ m10["10 RDS PostgreSQL"] ~~~ m11["11 Aurora"] ~~~ m12["12 ElastiCache"]
+        m13["13 DocumentDB"] ~~~ m14["14 SQS + SNS"] ~~~ m15["15 S3"]
+    end
+    subgraph p4["4. Scaling and releasing"]
+        m16["16 Auto Scaling"] ~~~ m17["17 Deployments"]
+    end
+    subgraph p5["5. Resilience across regions"]
+        m18["18 Multi-region"]
+    end
+    subgraph p6["6. Observability"]
+        m19["19 CloudWatch"] ~~~ m20["20 Prometheus + Grafana"] ~~~ m21["21 Datadog"]
+    end
+    p1 -- "VPC layout and<br/>service pattern" --> p2
+    p2 -- "load balancers" --> p3 & p4 & p5 & p6
+```
+
+The loop to repeat in every module:
+
+```mermaid
+flowchart LR
+    read["read Overview<br/>and Architecture"] --> deploy["deploy to floci"]
+    deploy --> verify["Verify"]
+    verify --> manage["Manage it with<br/>the AWS CLI"]
+    manage --> learn["Metrics to watch,<br/>Troubleshooting,<br/>floci vs real AWS"]
+    learn --> clean["Clean up:<br/>destroy + prune"]
+    clean --> nextm(["next module"])
+```
+
 ## Phase 1 - Foundations
 
 | # | Module | Stack | You learn |

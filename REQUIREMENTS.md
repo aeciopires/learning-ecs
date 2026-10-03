@@ -66,7 +66,39 @@ A few concepts first:
 - **uv** installs this project's Python packages (including `aws-cdk-lib`)
   into a private `.venv/`.
 
+How the ECS pieces relate - every module builds some version of this:
+
+```mermaid
+flowchart TB
+    hub[("Docker Hub image")] --> td
+    exec["task execution role<br/>used by ECS to pull the image,<br/>read secrets and write logs"] -.-> td
+    role["task role<br/>used by your app's code<br/>(S3, SQS, ...)"] -.-> td
+    td["task definition, revision N<br/>image, CPU, memory, ports,<br/>environment, secrets, logging"]
+    td -- "runs copies of" --- svc
+    subgraph cluster["ECS cluster"]
+        svc["service<br/>keeps desired count = 2"]
+        svc -- "starts and replaces" --> t1["task in AZ a<br/>container 'app'"]
+        svc -- "starts and replaces" --> t2["task in AZ b<br/>container 'app'"]
+    end
+    lb["load balancer<br/>(target group)"] -- "traffic" --> t1 & t2
+    cap["runs on Fargate (serverless)<br/>or EC2 instances (module 03)"] -.- cluster
+```
+
+Each module adds or swaps a piece: an NLB, API Gateway or CloudFront in
+front (modules 04-08), a database or queue behind (09-15), scaling and
+deployment settings on the service (16-17), metrics and logs around it
+(19-21). How the repository's code turns into these resources is drawn in
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
 Step by step:
+
+```mermaid
+flowchart LR
+    s1["1. install<br/>the software"] --> s2["2. git clone"] --> s3["3. make check"] --> s4["4. uv sync"]
+    s4 --> s5["5. docker compose<br/>up -d floci"] --> s6["6. cp .env.example .env<br/>source .env"]
+    s6 --> s7["7. cdk --version<br/>cdk list (23 stacks)"] --> s8["8. cdk bootstrap<br/>(once)"] --> s9(["9. modules,<br/>in order"])
+```
+
 
 1. **Install the software** in [section 3](#3-required-software)
    ([3.1](#31---install-on-ubuntu-amd64) Ubuntu, [3.2](#32---install-on-macos-arm64-and-amd64) macOS).
@@ -291,6 +323,36 @@ once the variables in [`.env.example`](.env.example) are loaded. For ECS it
 goes further than a mock: tasks, RDS/Aurora databases, ElastiCache and
 DocumentDB clusters run as real containers through the Docker socket.
 
+What runs where, as observed with floci 2.1.0 and module 04 deployed:
+
+```mermaid
+flowchart TB
+    you["your terminal<br/>aws · uv run cdk · curl"]
+    hub[("Docker Hub")]
+    subgraph net["Docker network learning-ecs-floci-net"]
+        floci["learning-ecs-floci<br/>:4566 AWS API<br/>:8080-8099 load balancer listeners<br/>:7001-7099 RDS · :6379-6399 ElastiCache"]
+        tasks["task containers<br/>floci-ecs-{id}-{container}<br/>(no published ports)"]
+    end
+    you -- "API calls to http://localhost:4566" --> floci
+    you -- "curl localhost:8081" --> floci
+    floci -- "starts them through<br/>/var/run/docker.sock" --> tasks
+    floci -- "forwards listener traffic" --> tasks
+    tasks -. "http://floci:4566" .-> floci
+    hub -- "image pull" --> tasks
+```
+
+- Only the `learning-ecs-floci` container publishes ports. Task
+  containers (`floci-ecs-<id>-<container>`) publish none: you reach them
+  through a load balancer listener on floci (`localhost:8081` for module
+  04's public ALB) - which is why every listener needs its own port
+  ([section 6](#6-network-ports-used)).
+- Tasks are on the same Docker network as floci and reach its API at
+  `http://floci:4566`.
+- Their stdout/stderr goes to floci's own log, not CloudWatch Logs
+  ([5.10](#510---where-ecs-task-output-goes-on-floci)).
+- `docker ps` shows the task containers while a stack is deployed;
+  `cdk destroy` removes them.
+
 ### 5.1 - Option A: docker compose (this repository's `docker-compose.yml`)
 
 ```bash
@@ -361,6 +423,25 @@ Re-running it is harmless. Check:
 `aws cloudformation describe-stacks --stack-name CDKToolkit --query "Stacks[0].StackStatus"`.
 
 ### 5.6 - Re-running `cdk deploy` on floci, and changing a deployed stack
+
+The life of a module on floci - sections 5.6 to 5.9 explain each arrow:
+
+```mermaid
+stateDiagram-v2
+    direction LR
+    [*] --> Synthesized: cdk synth
+    Synthesized --> Reviewed: cdk diff
+    Reviewed --> Deployed: cdk deploy --method=direct
+    Deployed --> Deployed: Verify and CLI sections
+    Deployed --> Destroyed: cdk destroy
+    Destroyed --> Clean: floci_prune.py --apply
+    Clean --> [*]
+    Clean --> Synthesized: changed code or .env
+    note right of Clean
+        floci keeps the empty VPC after
+        cdk destroy - the prune deletes it
+    end note
+```
 
 **Always deploy to floci with `--method=direct`** (every README does):
 

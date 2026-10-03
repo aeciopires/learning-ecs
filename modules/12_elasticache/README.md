@@ -56,6 +56,22 @@ another AZ, **Multi-AZ with automatic failover**, encrypted in transit
 
 ## Architecture
 
+```mermaid
+flowchart LR
+    cnt["counter tasks<br/>(x2, no load balancer)"] -- "INCR visits" --> pe["primary endpoint"]
+    cnt -- "GET visits" --> re["reader endpoint"]
+    cli["one-off client task<br/>(aws ecs run-task)<br/>valkey-cli $CMD"] --> pe
+    subgraph rg["replication group learning-ecs-dev-valkey - isolated subnets, port 6379, TLS, only from the two task SGs"]
+        p["primary (AZ a)"] -- "async replication" --> r["replica (AZ b)"]
+    end
+    pe --> p
+    re --> r
+    fo["Multi-AZ, automatic failover:<br/>the replica is promoted"] -.- rg
+```
+
+<details>
+<summary>Plain-text version (names and details)</summary>
+
 ```
  counter tasks (x2, no load balancer)          one-off client task (aws ecs run-task)
    INCR visits  -> primary endpoint  --+         valkey-cli $CMD  -> primary endpoint
@@ -65,6 +81,8 @@ another AZ, **Multi-AZ with automatic failover**, encrypted in transit
    ElastiCache replication group learning-ecs-dev-valkey   (isolated subnets)
      primary (AZ a)  ---async replication--->  replica (AZ b)   [Multi-AZ, automatic failover]
 ```
+
+</details>
 
 ## AWS services and CDK constructs used
 

@@ -58,6 +58,26 @@ container **depends on it finishing with `SUCCESS`** before it starts.
 
 ## Architecture
 
+```mermaid
+flowchart TB
+    subgraph evt["events task (service, x2) - the client task (aws ecs run-task) has the same two containers"]
+        ca["ca-bundle (curlimages/curl), essential=false<br/>curl -o /certs/global-bundle.pem ... then exit 0"]
+        vol[("volume 'certs' (task-scoped)")]
+        mg["mongosh (mongo:8.0)<br/>mongosh --tls --tlsCAFile /certs/...<br/>--eval insertOne + countDocuments"]
+        ca -- "dependsOn: SUCCESS" --> mg
+        ca -. "writes (rw)" .-> vol
+        vol -. "reads (ro)" .-> mg
+    end
+    mg -- "27017, only from the two task SGs" --> p
+    subgraph db["DocumentDB cluster learning-ecs-dev-docdb (isolated subnets)"]
+        p["primary (AZ a)"] --- v[("shared cluster volume")]
+        r["replica (AZ b)"] --- v
+    end
+```
+
+<details>
+<summary>Plain-text version (names and details)</summary>
+
 ```
  events task (service, x2)                         client task (aws ecs run-task)
  +---------------------------------------------+   (same two containers)
@@ -73,6 +93,8 @@ container **depends on it finishing with `SUCCESS`** before it starts.
    DocumentDB cluster learning-ecs-dev-docdb  (isolated subnets)
      primary (AZ a)   replica (AZ b)   -- shared cluster volume --
 ```
+
+</details>
 
 ## AWS services and CDK constructs used
 
