@@ -7,6 +7,7 @@
   - [How each module is organized](#how-each-module-is-organized)
   - [Documentation](#documentation)
   - [Contributing and license](#contributing-and-license)
+  - [Developers](#developers)
 
 <!-- TOC -->
 
@@ -104,3 +105,8 @@ Contributions are welcome - see [`CONTRIBUTING.md`](CONTRIBUTING.md).
 Licensed under the GNU General Public License v3.0 - see [`LICENSE`](LICENSE).
 Deploying to a real AWS account costs money; each module's "Deploy to real
 AWS" section says what it bills for. Destroy what you deploy.
+
+## Developers
+
+Aécio dos Santos Pires<br>
+https://linktr.ee/aeciopires
