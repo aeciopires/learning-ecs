@@ -1,0 +1,59 @@
+# Local AWS emulator for this learning path - every module in modules/ is
+# meant to be deployed here first, for free, before (optionally) deploying
+# to a real AWS account. See REQUIREMENTS.md section 5.
+#
+# References (floci 2.1.0 - the image this file was tested with):
+# - https://floci.io/aws/
+# - https://github.com/floci-io/floci (docs/services/ecs.md, elb.md, rds.md, ...)
+# - https://github.com/floci-io/floci/blob/2.1.0/docs/configuration/docker.md
+name: learning-ecs
+
+services:
+  floci:
+    image: floci/floci:latest
+    container_name: learning-ecs-floci
+    ports:
+      - "4566:4566"          # AWS-compatible API endpoint (AWS CLI, SDKs, CDK CLI)
+      # Load balancer listeners (floci binds every listener on this container -
+      # see the CDK_PORT_* variables in .env.example).
+      - "8080-8099:8080-8099"
+      # RDS / Aurora proxy ports (floci docs/services/rds.md).
+      - "7001-7099:7001-7099"
+      # ElastiCache proxy ports (floci docs/services/elasticache.md).
+      - "6379-6399:6379-6399"
+    environment:
+      FLOCI_DEFAULT_REGION: us-east-1
+      # "persistent" survives `docker compose down` via ./.floci/data below.
+      FLOCI_STORAGE_MODE: persistent
+      # Built-in web console at http://localhost:4566/_floci/ui
+      FLOCI_SERVICES_UI_ENABLED: "true"
+      # This service's Compose name: containers floci starts (ECS tasks,
+      # Lambda functions, databases) reach floci at http://floci:4566.
+      FLOCI_HOSTNAME: floci
+      # HTTPS next to HTTP on 4566, and on 443 inside the container - needed
+      # by the CDK's custom-resource handlers (they report to an https://
+      # URL without a port). See https://floci.io/floci/configuration/tls/
+      FLOCI_TLS_ENABLED: "true"
+      # floci refuses custom CloudFront origins that resolve to private
+      # addresses unless listed here; module 07 points its origin at floci's
+      # own localhost (see modules/07_cloudfront/README.md).
+      FLOCI_SERVICES_CLOUDFRONT_ALLOWED_PRIVATE_ORIGIN_HOSTS: localhost
+    volumes:
+      # Lets floci run ECS tasks, RDS, ElastiCache and DocumentDB as real
+      # Docker containers instead of shallow mocks.
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./.floci/data:/app/data
+    networks:
+      - floci-net
+    # The floci/floci image has bash but no curl/wget: probe the port with
+    # bash's /dev/tcp instead.
+    healthcheck:
+      test: ["CMD", "bash", "-c", "echo > /dev/tcp/127.0.0.1/4566"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+
+networks:
+  floci-net:
+    name: learning-ecs-floci-net

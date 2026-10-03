@@ -1,0 +1,21 @@
+{
+  "app": "uv run python app.py",
+  "watch": {
+    "include": [
+      "**"
+    ],
+    "exclude": [
+      "README.md",
+      "cdk*.json",
+      "**/__pycache__",
+      "**/*.pyc",
+      ".venv",
+      ".git",
+      "docs/**",
+      "*.md"
+    ]
+  },
+  "context": {
+    "@aws-cdk/customresources:installLatestAwsSdkDefault": false
+  }
+}

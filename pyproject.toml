@@ -1,0 +1,48 @@
+[project]
+name = "learning-ecs"
+version = "0.1.0"
+description = "A beginner-to-advanced learning path for running Amazon ECS at scale with the AWS CDK (Python), tested locally against the floci AWS emulator."
+readme = "README.md"
+requires-python = ">=3.14"
+license = { file = "LICENSE" }
+dependencies = [
+    "aws-cdk-lib==2.272.0",
+    "constructs>=10.8.1,<11.0.0",
+    "boto3>=1.40.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+    "mypy>=1.14.0",
+    "ruff>=0.9.0",
+    "pytest-cov>=7.1.0",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["app", "shared", "modules", "scripts"]
+omit = ["*/tests/*", "tests/*"]
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true
+skip_covered = false
+exclude_also = [
+    'if __name__ == .__main__.:',
+    'raise NotImplementedError',
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["shared", "modules"]
